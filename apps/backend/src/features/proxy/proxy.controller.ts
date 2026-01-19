@@ -4,11 +4,11 @@ import { ApiKeyGuard } from '../api-keys/guards/api-key.guard';
 import { ProxyService } from './proxy.service';
 
 @Controller()
-@UseGuards(ApiKeyGuard)
 export class ProxyController {
   constructor(private readonly proxyService: ProxyService) {}
 
   @Post('chat/completions')
+  @UseGuards(ApiKeyGuard)
   async chatCompletions(@Req() req: Request, @Res() res: Response) {
     return this.proxyService.proxyRequest(req, res);
   }
