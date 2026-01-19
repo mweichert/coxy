@@ -29,6 +29,10 @@ export class TokenResolverService {
       throw new UnauthorizedException('Missing API key');
     }
 
+    return this.resolveCopilotTokenFromKey(userKey);
+  }
+
+  async resolveCopilotTokenFromKey(userKey: string) {
     const key = this.cacheKeyFromUserKey(userKey);
     const cached = this.tokenCache.get(key);
     if (this.isFresh(cached)) return cached;

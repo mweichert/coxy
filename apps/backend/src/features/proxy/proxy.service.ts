@@ -1,6 +1,7 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { API_KEYS_STORAGE, IApiKeysStorage } from '_/shared/api-keys';
 import { toHeaders } from '_/shared/utils';
 import { Request, Response } from 'express';
 import { lastValueFrom } from 'rxjs';
@@ -16,6 +17,7 @@ export class ProxyService {
     private readonly httpService: HttpService,
     private readonly tokenResolver: TokenResolverService,
     private readonly configService: ConfigService,
+    @Inject(API_KEYS_STORAGE) private readonly apiKeysStorage: IApiKeysStorage,
   ) {
     this.copilotApiUrl = this.configService.get<string>('github.copilot.copilotApiUrl');
     this.globalPrefix = this.configService.get<string>('api.prefix');
@@ -59,13 +61,23 @@ export class ProxyService {
       ...(this.configService.get<Record<string, string>>('github.copilot.headers') ?? {}),
     } as Record<string, string>;
 
-    const isChatCompletions = this.getTargetUrl(req).pathname.startsWith('/chat/completions');
+    const pathname = this.getTargetUrl(req).pathname;
+    const isChatCompletions = pathname.startsWith('/chat/completions');
+    const isModels = pathname.startsWith('/models');
+
     if (isChatCompletions) {
       const { token } = await this.tokenResolver.resolveCopilotToken(req);
       headers.authorization = `Bearer ${token}`;
 
       const contentLength = Buffer.byteLength(JSON.stringify(req.body), 'utf8');
       headers['content-length'] = contentLength.toString();
+    } else if (isModels) {
+      // For public /models endpoint, use default API key
+      const defaultApiKey = await this.apiKeysStorage.getDefault();
+      if (defaultApiKey) {
+        const { token } = await this.tokenResolver.resolveCopilotTokenFromKey(defaultApiKey.key);
+        headers.authorization = `Bearer ${token}`;
+      }
     }
 
     return headers;
