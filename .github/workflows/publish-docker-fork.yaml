@@ -1,0 +1,27 @@
+name: Publish Fork Docker image to GHCR
+on:
+  push:
+    tags:
+      - '*-fork.*'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REPO_PATH: ghcr.io/${{ github.repository }}
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push Docker image
+        run: |
+          docker build -t ${{ env.REPO_PATH }}:${{ env.VERSION }} .
+          docker push ${{ env.REPO_PATH }}:${{ env.VERSION }}
